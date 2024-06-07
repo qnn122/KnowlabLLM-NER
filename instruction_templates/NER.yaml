@@ -1,0 +1,23 @@
+zero_shot: |
+  Below is an instruction that describes a task, paired with an input that provides further context. Write a response that appropriately completes the request.
+  ### Instruction:
+  Given a sentence, extract "{{entity_type}}" entities from it by highlighting them with <mark> and </mark>. If not present, output the same sentence. No further explanation needed.
+  ### Input:
+  {{input_text}}
+  ### Response:
+
+few_shot: |
+  Below is an instruction that describes a task, paired with an input that provides further context. Write a response that appropriately completes the request.
+  ### Instruction:
+  Given a sentence, extract "{{entity_type}}" entities from it by highlighting them with <mark> and </mark>. If not present, output the same sentence. No further explanation needed.
+  {% for example in examples %}
+  ### Input:
+  {{ example.input_text }}
+  ### Response:
+  {{ example.response }}
+  {% endfor %} 
+  ### Input:
+  {{new_input}}
+  ### Response:
+
+  

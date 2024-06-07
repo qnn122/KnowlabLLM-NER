@@ -1,18 +1,18 @@
 import requests
 from ast import literal_eval
 from transformers import AutoTokenizer
+import yaml
+from jinja2 import Template
 
 
-def promptify(input_text, entity_type):
-    PROMPT=f'''Below is an instruction that describes a task, paired with an input that provides further context. Write a response that appropriately completes the request.
 
-    ### Instruction:
-    Given a sentence, extract {entity_type} entities from it by highlighting them with <mark> and </mark>. If not present, output the same sentence.
-    ### Input:
-    {input_text}
-    ### Response:
-
-    '''
+def promptify(input_text, entity_type, template, examples=None):
+    if examples:
+        prompt_template = Template(template['few_shot'])
+        PROMPT = prompt_template.render(entity_type=entity_type, examples=examples, new_input=input_text)
+    else:
+        prompt_template = Template(template['zero_shot'])
+        PROMPT = prompt_template.render(entity_type=entity_type, new_input=input_text)
     return PROMPT
 
 
@@ -39,7 +39,7 @@ def get_response(text):
     data = {
         "prompt": text,
         "max_tokens": 200,
-        "temperature": 0.7,
+        "temperature": 0.1,
         "typical_p": 1,
         "seed": 10,
         "return_full_text": False,
@@ -54,9 +54,12 @@ def get_response(text):
     #answer = response.text
     return answer
 
-def get_answer(text, entity_type):
-    prompt = promptify(text, entity_type)
+def get_answer(text, entity_type, template, examples=None):
+    prompt = promptify(text, entity_type, template, examples)
 
+    # if prompt does not end with \n\n, add it
+    if not prompt.endswith('\n\n'):
+        prompt += '\n\n'
     #return literal_eval(answer)
     return get_response(prompt)
 

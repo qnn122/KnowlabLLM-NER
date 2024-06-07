@@ -32,11 +32,23 @@ import os
 import srsly
 import fire
 import eval4ner.muc as muc
+import random
+import yaml
+
+
+# Function to load the YAML file
+def load_prompt_from_yaml(file_path='instruction_templates/NER.yaml'):
+    with open(file_path, 'r') as file:
+        template = yaml.safe_load(file)
+    return template
+
 
 def main(
     filepath: str,
     entity_type: str,
-    output_dir: str
+    output_dir: str,
+    n_examples: int = None,
+    seed: int = 42
 ):
     # read lines from 'datasets/NCBI-disease_test.txt'
     print('>>> Processing file:', filepath)
@@ -48,6 +60,9 @@ def main(
 
     entity_type_short = entity_type[:3].upper()
 
+    # Prompt template
+    template = load_prompt_from_yaml()
+
     # Get true labels
     y_true = []
     for line in lines:
@@ -55,13 +70,26 @@ def main(
         bio_tags = get_bio_tagging(tokens, entity_type_short=entity_type_short)
         y_true.append(bio_tags)
 
+    # Get example
+    if n_examples:
+        filepath_train = filepath.replace('test', 'train')
+        with open(filepath_train, 'r') as f:
+            lines = f.readlines()
 
+        random.seed(seed)
+        examples_tmp = random.sample(lines, n_examples)
+        examples = [{'input_text': e.replace('<mark>', '').replace('</mark>', ''), 'response': e} for e in examples_tmp]
+    else:
+        examples = None
+
+    
+        
     # Get predictions
     lines_processed = [l.replace('<mark>', '').replace('</mark>', '') for l in lines]
     lines_pred = []
     for line in tqdm(lines_processed):
         try:
-            ans = get_answer(line, entity_type='disease')
+            ans = get_answer(line, entity_type, template, examples)
         except SyntaxError:
             ans = 'ERROR: SyntaxError'
         lines_pred.append(ans.strip())
@@ -87,11 +115,18 @@ def main(
     dataset_name, ext = os.path.splitext(filename)
     output_filepath_muc = os.path.join(output_dir, dataset_name + '_muc.csv')
     output_filepath_y_preds = os.path.join(output_dir, dataset_name + '_y_preds.jsonl')
+    output_filepath_lines_pred = os.path.join(output_dir, dataset_name + '_lines_preds.jsonl')
 
+    # make sure output directory exists
+    if not os.path.exists(output_dir):
+        os.makedirs(output_dir)
+
+    # saving
     print('>>> Saving results to:', output_filepath_muc)
     df_result.to_csv(output_filepath_muc)
     print('>>> Saving predictions to:', output_filepath_y_preds)
     srsly.write_jsonl(output_filepath_y_preds, y_pred)
+    srsly.write_jsonl(output_filepath_lines_pred, lines_pred)
 
 
 if __name__ == '__main__':
