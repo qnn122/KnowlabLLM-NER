@@ -1,0 +1,17 @@
+Below is an instruction that describes a task, paired with an input that provides further context. Write a response that appropriately completes the request.
+
+### Instruction:
+Given a sentence, extract "disease" entities from it by highlighting them with <mark> and </mark>. If not present, output the same sentence.
+### Input:
+For 39 randomly selected tumors , SSCP , hetero - duplex analysis , sequencing , and Southern blot analysis were used to identify mutations . 
+### Response:
+
+
+Below is an instruction that describes a task, paired with an input that provides further context. Write a response that appropriately completes the request.
+
+### Instruction:
+Given a sentence, extract "disease" entities from it by highlighting them with <mark> and </mark>. If not present, output the same sentence. No further explanation needed.
+### Input:
+METHODS Twins with AS were identified from the Royal National Hospital for Rheumatic Diseases database . 
+### Response:
+
