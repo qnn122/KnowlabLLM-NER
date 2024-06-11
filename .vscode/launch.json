@@ -13,8 +13,9 @@
             "args": [
                 "--filepath", "datasets/BC5CDR-chemical_test.txt",
                 "--entity_type", "chemical",
-                "--output_dir", "results/phi3-4k-base",
-                "--n_examples", "5"
+                "--output_dir", "results/debug",
+                "--n_examples", "5",
+                "--n_samples", "20"
             ]
         }
     ]

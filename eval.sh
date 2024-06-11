@@ -1,18 +1,23 @@
 # ===============================
+OUPUT_DIR='results/mixtral-7x8B-4bit-5shot-samples'
+
 python eval.py \
     --filepath datasets/BC2GM_test.txt \
     --entity_type 'gene' \
-    --output_dir 'results/phi3-4k-base' \
-    --n_examples 5
+    --output_dir $OUPUT_DIR \
+    --n_examples 5 \
+    --n_samples 200
 
 python eval.py \
     --filepath datasets/BC5CDR-chemical_test.txt \
     --entity_type 'chemical' \
-    --output_dir 'results/phi3-4k-base' \
-    --n_examples 5
+    --output_dir $OUPUT_DIR \
+    --n_examples 5 \
+    --n_samples 200
 
 python eval.py \
     --filepath datasets/NCBI-disease_test.txt \
-    --entity_type 'gene' \
-    --output_dir 'results/phi3-4k-base' \
-    --n_examples 5
+    --entity_type 'disease' \
+    --output_dir $OUPUT_DIR \
+    --n_examples 5 \
+    --n_samples 200

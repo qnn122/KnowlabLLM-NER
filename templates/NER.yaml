@@ -6,6 +6,20 @@ zero_shot: |
   {{input_text}}
   ### Response:
 
+few_shot2: |
+  Below is an instruction that describes a task, paired with an input that provides further context. Write a response that appropriately completes the request.
+  [instruction]:
+  Given a sentence, extract "{{entity_type}}" entities from it by highlighting them with <mark> and </mark>. If not present, output the same sentence. No further explanation needed.
+  {% for example in examples %}
+  [input]:
+  {{ example.input_text }}
+  [response]:
+  {{ example.response }}
+  {% endfor %} 
+  [input]:
+  {{new_input}}
+  [response]:
+
 few_shot: |
   Below is an instruction that describes a task, paired with an input that provides further context. Write a response that appropriately completes the request.
   ### Instruction:
@@ -19,5 +33,3 @@ few_shot: |
   ### Input:
   {{new_input}}
   ### Response:
-
-  

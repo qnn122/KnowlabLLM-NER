@@ -25,7 +25,7 @@ python eval.py \
 '''
 
 from tqdm import tqdm
-from setup import get_answer, load_tokenizer, get_bio_tagging, bio_to_entities
+from setup import get_answer, load_tokenizer, get_bio_tagging, bio_to_entities, promptify
 #from nerval import crm
 import pandas as pd
 import os
@@ -34,10 +34,10 @@ import fire
 import eval4ner.muc as muc
 import random
 import yaml
-
+import json
 
 # Function to load the YAML file
-def load_prompt_from_yaml(file_path='instruction_templates/NER.yaml'):
+def load_prompt_from_yaml(file_path='templates/NER.yaml'):
     with open(file_path, 'r') as file:
         template = yaml.safe_load(file)
     return template
@@ -48,7 +48,8 @@ def main(
     entity_type: str,
     output_dir: str,
     n_examples: int = None,
-    seed: int = 42
+    seed: int = 42,
+    n_samples: int = None
 ):
     # read lines from 'datasets/NCBI-disease_test.txt'
     print('>>> Processing file:', filepath)
@@ -63,6 +64,11 @@ def main(
     # Prompt template
     template = load_prompt_from_yaml()
 
+    # Sample for quicker evaluation
+    if n_samples:
+        random.seed(seed)
+        lines = random.sample(lines, n_samples)
+
     # Get true labels
     y_true = []
     for line in lines:
@@ -70,24 +76,24 @@ def main(
         bio_tags = get_bio_tagging(tokens, entity_type_short=entity_type_short)
         y_true.append(bio_tags)
 
-    # Get example
+    # Get example for few-shot learning
     if n_examples:
         filepath_train = filepath.replace('test', 'train')
         with open(filepath_train, 'r') as f:
-            lines = f.readlines()
+            lines_train = f.readlines()
 
         random.seed(seed)
-        examples_tmp = random.sample(lines, n_examples)
+        examples_tmp = random.sample(lines_train, n_examples)
         examples = [{'input_text': e.replace('<mark>', '').replace('</mark>', ''), 'response': e} for e in examples_tmp]
     else:
         examples = None
 
     
-        
     # Get predictions
     lines_processed = [l.replace('<mark>', '').replace('</mark>', '') for l in lines]
     lines_pred = []
-    for line in tqdm(lines_processed):
+    for i, line in enumerate(tqdm(lines_processed)):
+        #line = line.strip()
         try:
             ans = get_answer(line, entity_type, template, examples)
         except SyntaxError:
@@ -116,6 +122,8 @@ def main(
     output_filepath_muc = os.path.join(output_dir, dataset_name + '_muc.csv')
     output_filepath_y_preds = os.path.join(output_dir, dataset_name + '_y_preds.jsonl')
     output_filepath_lines_pred = os.path.join(output_dir, dataset_name + '_lines_preds.jsonl')
+    output_filepath_lines_data = os.path.join(output_dir, dataset_name + '_lines_data.jsonl')
+    ouput_prompt_template = os.path.join(output_dir, dataset_name + '_prompt_template.txt')
 
     # make sure output directory exists
     if not os.path.exists(output_dir):
@@ -127,6 +135,17 @@ def main(
     print('>>> Saving predictions to:', output_filepath_y_preds)
     srsly.write_jsonl(output_filepath_y_preds, y_pred)
     srsly.write_jsonl(output_filepath_lines_pred, lines_pred)
+    srsly.write_jsonl(output_filepath_lines_data, lines)
+
+    prompt = promptify(line, entity_type, template, examples)
+    config = {
+        'entity_type': entity_type,
+        'n_samples': n_samples,
+        'prompt': prompt
+    }
+    # write config as json with indent=4
+    with open(ouput_prompt_template, 'w') as f:
+        json.dump(config, f, indent=4)
 
 
 if __name__ == '__main__':
