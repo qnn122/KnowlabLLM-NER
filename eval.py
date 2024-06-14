@@ -36,6 +36,55 @@ import random
 import yaml
 import json
 
+from transformers import AutoModelForCausalLM, AutoTokenizer
+from transformers.generation import GenerationConfig
+#from setup import promptify
+
+def load_models_tokenizer(checkpoint_path):
+    tokenizer = AutoTokenizer.from_pretrained(
+        checkpoint_path,
+        trust_remote_code=True
+    )
+    tokenizer.pad_token_id = tokenizer.eos_token_id
+    model = AutoModelForCausalLM.from_pretrained(
+        checkpoint_path,
+        pad_token_id=tokenizer.pad_token_id,
+        device_map="auto",
+        trust_remote_code=True
+    ).eval()
+    model.generation_config = GenerationConfig.from_pretrained(
+        checkpoint_path,
+        pad_token_id=tokenizer.pad_token_id,
+        trust_remote_code=True
+    )
+    return model, tokenizer
+
+def get_answer_checkpoint(input_text, entity_type, template, examples, model, tokenizer):    
+    prompt = promptify(input_text, entity_type, template, examples)
+
+    # if prompt does not end with \n\n, add it
+    if not prompt.endswith('\n'):
+        prompt += '\n'
+
+    inputs = tokenizer([prompt], return_tensors="pt")
+    params = {        
+        "max_new_tokens": 400,
+        #"temperature": 0.1,
+        #"do_sample": True,
+        #"repetition_penalty": 1.15,
+        #"guidance_scale": 1
+    }
+    #outputs = model.generate(**inputs, max_new_tokens=5, return_dict_in_generate=True, output_scores=True)
+    outputs = model.generate(**inputs, **params)
+
+    outputs_gen = outputs[0][inputs['input_ids'].shape[1]:]
+    output_text = tokenizer.decode(outputs_gen)
+    #output_text = tokenizer.decode(outputs[0], skip_special_tokens=True)
+
+
+    return output_text
+
+
 # Function to load the YAML file
 def load_prompt_from_yaml(file_path='templates/NER.yaml'):
     with open(file_path, 'r') as file:
@@ -49,15 +98,26 @@ def main(
     output_dir: str,
     n_examples: int = None,
     seed: int = 42,
-    n_samples: int = None
+    n_samples: int = None,
+    checkpoint_path: str = None
 ):
     # read lines from 'datasets/NCBI-disease_test.txt'
     print('>>> Processing file:', filepath)
     with open(filepath, 'r') as f:
         lines = f.readlines()
 
-    # Load tokenizer
-    tokenizer = load_tokenizer()
+    if checkpoint_path:
+        checkpoint_path = "models/Phi-3-mini-4k-instruct"
+        model, tokenizer = load_models_tokenizer(checkpoint_path)
+        tokenizer.pad_token_id = tokenizer.eos_token_id
+    else:
+        # Load tokenizer
+        tokenizer = load_tokenizer()
+
+    # add special token <mark> and </mark> to the tokenizer if not already present
+    if '<mark>' not in tokenizer.special_tokens_map.values():
+        tokenizer.add_special_tokens({'additional_special_tokens': ['<mark>', '</mark>']})
+
 
     entity_type_short = entity_type[:3].upper()
 
@@ -95,7 +155,10 @@ def main(
     for i, line in enumerate(tqdm(lines_processed)):
         #line = line.strip()
         try:
-            ans = get_answer(line, entity_type, template, examples)
+            if checkpoint_path:
+                ans = get_answer_checkpoint(line, entity_type, template, examples, model, tokenizer)
+            else:
+                ans = get_answer(line, entity_type, template, examples)
         except SyntaxError:
             ans = 'ERROR: SyntaxError'
         lines_pred.append(ans.strip())

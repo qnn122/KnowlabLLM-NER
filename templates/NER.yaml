@@ -17,7 +17,7 @@ few_shot2: |
   {{ example.response }}
   {% endfor %} 
   [input]:
-  {{new_input}}
+  {{input_text}}
   [response]:
 
 few_shot: |
@@ -31,5 +31,5 @@ few_shot: |
   {{ example.response }}
   {% endfor %} 
   ### Input:
-  {{new_input}}
+  {{input_text}}
   ### Response:

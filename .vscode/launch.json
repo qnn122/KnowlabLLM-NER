@@ -2,6 +2,8 @@
     // Use IntelliSense to learn about possible attributes.
     // Hover to view descriptions of existing attributes.
     // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+    // "--checkpoint_path", "/home/quangng/LLM/KnowlabLLM-NER/stanford_alpaca/models/Phi-3-mini-4k-instruct_finetuned/checkpoint-100",
+    // "--n_examples", "5",
     "version": "0.2.0",
     "configurations": [
         {
@@ -14,7 +16,6 @@
                 "--filepath", "datasets/BC5CDR-chemical_test.txt",
                 "--entity_type", "chemical",
                 "--output_dir", "results/debug",
-                "--n_examples", "5",
                 "--n_samples", "20"
             ]
         }

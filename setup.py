@@ -9,10 +9,10 @@ from jinja2 import Template
 def promptify(input_text, entity_type, template, examples=None):
     if examples:
         prompt_template = Template(template['few_shot'])
-        PROMPT = prompt_template.render(entity_type=entity_type, examples=examples, new_input=input_text)
+        PROMPT = prompt_template.render(entity_type=entity_type, examples=examples, input_text=input_text)
     else:
         prompt_template = Template(template['zero_shot'])
-        PROMPT = prompt_template.render(entity_type=entity_type, new_input=input_text)
+        PROMPT = prompt_template.render(entity_type=entity_type, input_text=input_text)
     return PROMPT
 
 
@@ -36,7 +36,7 @@ def get_response(text):
         "Content-Type": "application/json"
     }
 
-    data = {
+    params = {
         "prompt": text,
         "max_tokens": 200,
         "temperature": 0.1,
@@ -45,21 +45,22 @@ def get_response(text):
         "return_full_text": False,
         "repetition_penalty": 1.15,
         "repetition_penalty_range":1024,
-        "guidance_scale": 1
+        "guidance_scale": 1,
+        "skip_special_tokens": False
     }
 
-    response = requests.post(url, headers=headers, json=data)
+    response = requests.post(url, headers=headers, json=params)
 
     answer = literal_eval(response.text)['choices'][0]['text']
     #answer = response.text
     return answer
 
-def get_answer(text, entity_type, template, examples=None):
-    prompt = promptify(text, entity_type, template, examples)
+def get_answer(input_text, entity_type, template, examples=None):
+    prompt = promptify(input_text, entity_type, template, examples)
 
     # if prompt does not end with \n\n, add it
-    if not prompt.endswith('\n\n'):
-        prompt += '\n\n'
+    if not prompt.endswith('\n'):
+        prompt += '\n'
     #return literal_eval(answer)
     return get_response(prompt)
 
