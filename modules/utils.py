@@ -65,6 +65,22 @@ def get_answer(input_text, entity_type, template, examples=None):
     return get_response(prompt)
 
 
+def get_ents(line):
+    '''Just get entities between <mark> and </mark> in line
+    assuming that there are more than one entity in a line
+    '''
+    entities = []
+    start = 0
+    while True:
+        start = line.find('<mark>', start)
+        if start == -1:
+            break
+        end = line.find('</mark>', start)
+        entity = line[start + 6: end].strip()
+        entities.append(entity)
+        start = end
+    return entities
+
 # token next to <mark> becomes B-<entity_type_short>
 # tokens from B-<entity_type_short> to one before </mark> becomes I-<entity_type_short>
 # other tokens are O

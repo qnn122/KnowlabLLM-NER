@@ -25,7 +25,7 @@ python eval.py \
 '''
 
 from tqdm import tqdm
-from setup import get_answer, load_tokenizer, get_bio_tagging, bio_to_entities, promptify
+from modules.utils import get_ents, get_answer, load_tokenizer, get_bio_tagging, bio_to_entities, promptify
 #from nerval import crm
 import pandas as pd
 import os
@@ -195,7 +195,6 @@ def get_answer_checkpoint(input_text, entity_type, template, examples, model, to
     output_text = tokenizer.decode(output_gen)
     #output_text = tokenizer.decode(outputs[0], skip_special_tokens=True)
 
-
     return output_text
 
 
@@ -232,8 +231,6 @@ def main(
         tokenizer.add_special_tokens({'additional_special_tokens': ['<mark>', '</mark>']})
 
 
-    entity_type_short = entity_type[:3].upper()
-
     # Prompt template
     template = load_prompt_from_yaml()
 
@@ -241,13 +238,6 @@ def main(
     if n_samples:
         random.seed(seed)
         lines = random.sample(lines, n_samples)
-
-    # Get true labels
-    y_true = []
-    for line in lines:
-        tokens = tokenizer.tokenize(line)
-        bio_tags = get_bio_tagging(tokens, entity_type_short=entity_type_short)
-        y_true.append(bio_tags)
 
     # Get example for few-shot learning
     if n_examples:
@@ -276,15 +266,27 @@ def main(
             ans = 'ERROR: SyntaxError'
         lines_pred.append(ans.strip())
 
+    # post process
+    entity_type_short = entity_type[:3].upper()
+    '''
+    y_true = []
+    for line in lines:
+        tokens = tokenizer.tokenize(line)
+        bio_tags = get_bio_tagging(tokens, entity_type_short=entity_type_short)
+        y_true.append(bio_tags)
     y_pred = []
     for line in lines_pred:
         tokens = tokenizer.tokenize(line)
         bio_tags = get_bio_tagging(tokens, entity_type_short=entity_type_short)
         y_pred.append(bio_tags)
 
-    # Compute metrics
     y_true_ent = [y for y in map(bio_to_entities, [tokenizer.tokenize(line) for line in lines_processed], y_true)]
     y_pred_ent = [y for y in map(bio_to_entities, [tokenizer.tokenize(line) for line in lines_processed], y_pred)]
+    '''
+    y_true_ent = [[('CHEM', entity) for entity in get_ents(line)] for line in lines]
+    y_pred_ent = [[('CHEM', entity) for entity in get_ents(line)] for line in lines_pred]
+
+    # Compute metrics
     results = muc.evaluate_all(y_pred_ent, y_true_ent * 1, lines_processed, verbose=False)
     df_result = pd.DataFrame(results).T
     df_result.iloc[:,:3] = round(df_result.iloc[:,:3]*100,3)
@@ -296,7 +298,7 @@ def main(
     path, filename = os.path.split(filepath)
     dataset_name, ext = os.path.splitext(filename)
     output_filepath_muc = os.path.join(output_dir, dataset_name + '_muc.csv')
-    output_filepath_y_preds = os.path.join(output_dir, dataset_name + '_y_preds.jsonl')
+    #output_filepath_y_preds = os.path.join(output_dir, dataset_name + '_y_preds.jsonl')
     output_filepath_lines_pred = os.path.join(output_dir, dataset_name + '_lines_preds.jsonl')
     output_filepath_lines_data = os.path.join(output_dir, dataset_name + '_lines_data.jsonl')
     ouput_prompt_template = os.path.join(output_dir, dataset_name + '_prompt_template.txt')
@@ -308,8 +310,8 @@ def main(
     # saving
     print('>>> Saving results to:', output_filepath_muc)
     df_result.to_csv(output_filepath_muc)
-    print('>>> Saving predictions to:', output_filepath_y_preds)
-    srsly.write_jsonl(output_filepath_y_preds, y_pred)
+    #print('>>> Saving predictions to:', output_filepath_y_preds)
+    #srsly.write_jsonl(output_filepath_y_preds, y_pred)
     srsly.write_jsonl(output_filepath_lines_pred, lines_pred)
     srsly.write_jsonl(output_filepath_lines_data, lines)
 
