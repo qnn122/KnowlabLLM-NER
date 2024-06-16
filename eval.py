@@ -35,28 +35,113 @@ import eval4ner.muc as muc
 import random
 import yaml
 import json
+import torch
 
+import transformers
 from transformers import AutoModelForCausalLM, AutoTokenizer
 from transformers.generation import GenerationConfig
 #from setup import promptify
+import torch.nn.functional as F
+
+from modules import sampler_hijack
+from modules.callbacks import _StopEverythingStoppingCriteria
+
+from transformers import LogitsProcessorList, LogitsProcessor
+
+sampler_hijack.hijack_samplers()
+
+# def decode(output_ids, skip_special_tokens=True):
+#     if shared.tokenizer is None:
+#         raise ValueError('No tokenizer is loaded')
+
+#     return shared.tokenizer.decode(output_ids, skip_special_tokens=skip_special_tokens)
+
+
+# def get_reply_from_output_ids(output_ids, state=None, starting_from=0):
+#     reply = decode(output_ids[starting_from:], state['skip_special_tokens'] if state else True)
+
+#     # Handle tokenizers that do not add the leading space for the first token
+#     if (hasattr(shared.tokenizer, 'convert_ids_to_tokens') and len(output_ids) > starting_from) and not reply.startswith(' '):
+#         first_token = shared.tokenizer.convert_ids_to_tokens(int(output_ids[starting_from]))
+#         if isinstance(first_token, (bytes,)):
+#             first_token = first_token.decode('utf8')
+
+#         if first_token.startswith('▁'):
+#             reply = ' ' + reply
+
+#     return reply
+
+def decode(output_ids, tokenizer, skip_special_tokens=True):
+    if tokenizer is None:
+        raise ValueError('No tokenizer is loaded')
+
+    return tokenizer.decode(output_ids, skip_special_tokens=skip_special_tokens)
+
+
+def get_reply_from_output_ids(output_ids, tokenizer, state=None, starting_from=0):
+    reply = decode(output_ids[starting_from:], state['skip_special_tokens'] if state else True)
+
+    # Handle tokenizers that do not add the leading space for the first token
+    if (hasattr(tokenizer, 'convert_ids_to_tokens') and len(output_ids) > starting_from) and not reply.startswith(' '):
+        first_token = tokenizer.convert_ids_to_tokens(int(output_ids[starting_from]))
+        if isinstance(first_token, (bytes,)):
+            first_token = first_token.decode('utf8')
+
+        if first_token.startswith('▁'):
+            reply = ' ' + reply
+
+    return reply
+
+class LogprobProcessor(LogitsProcessor):
+    def __init__(self, logprobs=None):
+        self.logprobs = logprobs
+        self.token_alternatives = {}
+
+    def __call__(self, input_ids: torch.LongTensor, logits: torch.FloatTensor) -> torch.FloatTensor:
+        if self.logprobs is not None:  # 0-5
+            log_e_probabilities = F.log_softmax(logits, dim=1)
+            top_values, top_indices = torch.topk(log_e_probabilities, k=self.logprobs + 1)
+            top_tokens = [get_reply_from_output_ids([tok]) for tok in top_indices[0]]
+            top_probs = [float(x) for x in top_values[0]]
+            self.token_alternatives = dict(zip(top_tokens, top_probs))
+
+        return logits
+
+    def __repr__(self):
+        return f"<{self.__class__.__name__}(logprobs={self.logprobs}, token_alternatives={self.token_alternatives})>"
+
+
 
 def load_models_tokenizer(checkpoint_path):
     tokenizer = AutoTokenizer.from_pretrained(
         checkpoint_path,
         trust_remote_code=True
     )
-    tokenizer.pad_token_id = tokenizer.eos_token_id
+    tokenizer.pad_token_id = 32000
+    tokenizer.eos_token_id = 32007
+    # model = AutoModelForCausalLM.from_pretrained(
+    #     checkpoint_path,
+    #     pad_token_id=tokenizer.pad_token_id,
+    #     device_map="auto",
+    #     trust_remote_code=True,
+    #     low_cpu_mem_usage=True, 
+    #     torch_dtype=torch.float16, 
+    # ).eval()
+    params_model = {
+        'low_cpu_mem_usage': True, 
+        'torch_dtype': torch.float16, 
+        'trust_remote_code': True
+    }
     model = AutoModelForCausalLM.from_pretrained(
         checkpoint_path,
-        pad_token_id=tokenizer.pad_token_id,
-        device_map="auto",
-        trust_remote_code=True
-    ).eval()
-    model.generation_config = GenerationConfig.from_pretrained(
-        checkpoint_path,
-        pad_token_id=tokenizer.pad_token_id,
-        trust_remote_code=True
+        **params_model
     )
+    # model.generation_config = GenerationConfig.from_pretrained(
+    #     checkpoint_path,
+    #     pad_token_id=tokenizer.pad_token_id,
+    #     trust_remote_code=True
+    # )
+    model = model.cuda()
     return model, tokenizer
 
 def get_answer_checkpoint(input_text, entity_type, template, examples, model, tokenizer):    
@@ -67,18 +152,47 @@ def get_answer_checkpoint(input_text, entity_type, template, examples, model, to
         prompt += '\n'
 
     inputs = tokenizer([prompt], return_tensors="pt")
-    params = {        
-        "max_new_tokens": 400,
-        #"temperature": 0.1,
-        #"do_sample": True,
-        #"repetition_penalty": 1.15,
-        #"guidance_scale": 1
-    }
-    #outputs = model.generate(**inputs, max_new_tokens=5, return_dict_in_generate=True, output_scores=True)
-    outputs = model.generate(**inputs, **params)
+    # params = {        
+    #     "max_new_tokens": 400,
+    #     #"temperature": 0.1,
+    #     #"do_sample": True,
+    #     #"repetition_penalty": 1.15,
+    #     #"guidance_scale": 1
+    # }
 
-    outputs_gen = outputs[0][inputs['input_ids'].shape[1]:]
-    output_text = tokenizer.decode(outputs_gen)
+    generate_params = {
+        'max_new_tokens': 200, 
+        'temperature': 0.1, 'temperature_last': False, 
+        'dynamic_temperature': False, 'dynatemp_low': 1, 'dynatemp_high': 1, 'dynatemp_exponent': 1, 
+        'smoothing_factor': 0, 'smoothing_curve': 1, 
+        'top_p': 1, 'min_p': 0, 'top_k': 0, 
+        'repetition_penalty': 1.15, 'presence_penalty': 0, 
+        'frequency_penalty': 0, 'repetition_penalty_range': 1024, 
+        'typical_p': 1.0, 'tfs': 1, 'top_a': 0, 'guidance_scale': 1.0, 
+        'penalty_alpha': 0, 'mirostat_mode': 0, 'mirostat_tau': 5, 'mirostat_eta': 0.1, 
+        'do_sample': True, 'encoder_repetition_penalty': 1, 'no_repeat_ngram_size': 0, 
+        'use_cache': True,
+        'eos_token_id': [32007] # tokenizer.eos_token_id
+    }
+
+    generate_params['stopping_criteria'] = transformers.StoppingCriteriaList()
+    generate_params['stopping_criteria'].append(_StopEverythingStoppingCriteria())
+
+    logprobs = None  # coming to chat eventually
+    processor = LogprobProcessor(logprobs)
+    processor = LogitsProcessorList([processor])
+    generate_params['logits_processor'] = processor
+
+    #outputs = model.generate(**inputs, max_new_tokens=5, return_dict_in_generate=True, output_scores=True)
+    # make sure inputs in cuda too
+    #inputs = {k: v.cuda() for k, v in inputs.items()}
+    
+    generate_params['inputs'] = inputs['input_ids'].cuda()
+
+    output = model.generate(**generate_params)[0]
+
+    output_gen = output[inputs['input_ids'].shape[1]:]
+    output_text = tokenizer.decode(output_gen)
     #output_text = tokenizer.decode(outputs[0], skip_special_tokens=True)
 
 
@@ -107,7 +221,6 @@ def main(
         lines = f.readlines()
 
     if checkpoint_path:
-        checkpoint_path = "models/Phi-3-mini-4k-instruct"
         model, tokenizer = load_models_tokenizer(checkpoint_path)
         tokenizer.pad_token_id = tokenizer.eos_token_id
     else:

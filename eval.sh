@@ -97,3 +97,12 @@ python eval.py \
     --output_dir $OUPUT_DIR \
     --n_samples 200 
 
+
+### 
+OUPUT_DIR='results/debug'
+
+python eval.py \
+    --filepath datasets/BC2GM_test.txt \
+    --entity_type 'gene' \
+    --output_dir $OUPUT_DIR \
+    --n_samples 200 
