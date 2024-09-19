@@ -15,7 +15,7 @@ entity_types=(
 )
 
 # Define an array of filenames (without extensions)
-filenames=(
+filenames=(cp
     "BC2GM_test" 
     "BC5CDR-chemical_test" 
     #"BC5CDR-disease_test" 
@@ -25,7 +25,9 @@ filenames=(
 )
 
 # Output directory
-output_dir="results/phi-3-4k-pmc"
+DATA_NAME="pathbank" # CHANGE HERE
+OUPUT_DIR="results/phi3-4k-${DATA_NAME}-0shot-samples-finetuned"
+CHECKPOINT="/home/quangng/LLM/KnowlabLLM-NER/stanford_alpaca/models/phi-3-mini-4k-${DATA_NAME}-instruct-finetuned/checkpoint-100"
 
 # Loop over the filenames and run the command
 for filename in "${filenames[@]}"; do
@@ -35,5 +37,7 @@ for filename in "${filenames[@]}"; do
     python eval.py \
         --filepath "$data_dir/$filename.txt" \
         --entity_type "${entity_types[$base_name]}" \
-        --output_dir "$output_dir"
+        --output_dir "$OUPUT_DIR" \
+        --n_samples 200 \
+        --checkpoint_path $CHECKPOINT
 done

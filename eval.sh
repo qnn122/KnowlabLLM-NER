@@ -106,3 +106,55 @@ python eval.py \
     --entity_type 'gene' \
     --output_dir $OUPUT_DIR \
     --n_samples 200 
+
+
+
+# ===============================
+MODEL="KnowMedPhi3-medium-it-finetuned"
+
+MODEL="KnowMedPhi3-mini-it-finetuned"
+OUPUT_DIR="results/${MODEL}-0shot-samples-finetuned"
+CHECKPOINT="/home/quangng/LLM/KnowlabLLM-NER/stanford_alpaca/models/${MODEL}/checkpoint-50"
+python eval.py \
+    --filepath datasets/BC2GM_test.txt \
+    --entity_type 'gene' \
+    --output_dir $OUPUT_DIR \
+    --n_samples 200 \
+    --checkpoint_path $CHECKPOINT
+
+python eval.py \
+    --filepath datasets/BC5CDR-chemical_test.txt \
+    --entity_type 'chemical' \
+    --output_dir $OUPUT_DIR \
+    --n_samples 200 \
+    --checkpoint_path $CHECKPOINT
+
+python eval.py \
+    --filepath datasets/NCBI-disease_test.txt \
+    --entity_type 'disease' \
+    --output_dir $OUPUT_DIR \
+    --n_samples 200 \
+    --checkpoint_path $CHECKPOINT
+
+
+# ALL
+MODEL="KnowMedPhi3-mini-it-finetuned"
+OUPUT_DIR="results/all/${MODEL}-0shot-samples-finetuned"
+CHECKPOINT="/home/quangng/LLM/KnowlabLLM-NER/stanford_alpaca/models/${MODEL}/checkpoint-100"
+python eval.py \
+    --filepath datasets/BC2GM_test.txt \
+    --entity_type 'gene' \
+    --output_dir $OUPUT_DIR \
+    --checkpoint_path $CHECKPOINT
+
+python eval.py \
+    --filepath datasets/BC5CDR-chemical_test.txt \
+    --entity_type 'chemical' \
+    --output_dir $OUPUT_DIR \
+    --checkpoint_path $CHECKPOINT
+
+python eval.py \
+    --filepath datasets/NCBI-disease_test.txt \
+    --entity_type 'disease' \
+    --output_dir $OUPUT_DIR \
+    --checkpoint_path $CHECKPOINT

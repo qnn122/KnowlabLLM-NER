@@ -267,22 +267,6 @@ def main(
         lines_pred.append(ans.strip())
 
     # post process
-    entity_type_short = entity_type[:3].upper()
-    '''
-    y_true = []
-    for line in lines:
-        tokens = tokenizer.tokenize(line)
-        bio_tags = get_bio_tagging(tokens, entity_type_short=entity_type_short)
-        y_true.append(bio_tags)
-    y_pred = []
-    for line in lines_pred:
-        tokens = tokenizer.tokenize(line)
-        bio_tags = get_bio_tagging(tokens, entity_type_short=entity_type_short)
-        y_pred.append(bio_tags)
-
-    y_true_ent = [y for y in map(bio_to_entities, [tokenizer.tokenize(line) for line in lines_processed], y_true)]
-    y_pred_ent = [y for y in map(bio_to_entities, [tokenizer.tokenize(line) for line in lines_processed], y_pred)]
-    '''
     y_true_ent = [[('CHEM', entity) for entity in get_ents(line)] for line in lines]
     y_pred_ent = [[('CHEM', entity) for entity in get_ents(line)] for line in lines_pred]
 

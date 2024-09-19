@@ -16,9 +16,11 @@
                 "--filepath", "datasets/BC5CDR-chemical_test.txt",
                 "--entity_type", "chemical",
                 "--output_dir", "results/debug",
-                "--n_samples", "20",
-                "--checkpoint_path", "/home/quangng/LLM/KnowlabLLM-NER/stanford_alpaca/models/Phi-3-mini-4k-pmc-instruct-finetuned/checkpoint-100"                
+                "--n_samples", "10",
+                "--checkpoint_path", "/home/quangng/LLM/KnowlabLLM-NER/stanford_alpaca/models/Phi-3-mini-4k-pmc-instruct-finetuned/checkpoint-100"
             ]
         }
     ]
 }
+
+//"--checkpoint_path", "/home/quangng/LLM/KnowlabLLM-NER/stanford_alpaca/models/Phi-3-mini-4k-pmc-instruct-finetuned/checkpoint-100"
