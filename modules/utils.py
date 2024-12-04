@@ -81,11 +81,14 @@ def get_ents(line):
         start = end
     return entities
 
-# token next to <mark> becomes B-<entity_type_short>
-# tokens from B-<entity_type_short> to one before </mark> becomes I-<entity_type_short>
-# other tokens are O
-# remore <mark> and </mark> from tokens 
+
 def get_bio_tagging(tokens, entity_type_short='DIS'):
+    '''
+    token next to <mark> becomes B-<entity_type_short>
+    tokens from B-<entity_type_short> to one before </mark> becomes I-<entity_type_short>
+    other tokens are O
+    remore <mark> and </mark> from tokens 
+    '''
     tags = ['O'] * len(tokens)
 
     # mark <mark> and </mark> tokens as 'MS' and 'ME' in the bio_tagging
