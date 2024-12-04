@@ -15,7 +15,7 @@ entity_types=(
 )
 
 # Define an array of filenames (without extensions)
-filenames=(cp
+filenames=(
     "BC2GM_test" 
     "BC5CDR-chemical_test" 
     #"BC5CDR-disease_test" 
